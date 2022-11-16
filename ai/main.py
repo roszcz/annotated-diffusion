@@ -35,6 +35,8 @@ def main():
     channels = 1
     # batch_size = 128
     save_and_sample_every = 200
+    diffusion_steps = 200
+    diffuser = diffusion.Diffuser(diffusion_steps)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -58,9 +60,9 @@ def main():
             batch = batch["pixel_values"].to(device)
 
             # Algorithm 1 line 3: sample t uniformally for every example in the batch
-            t = torch.randint(0, diffusion.timesteps, (batch_size,), device=device).long()
+            t = torch.randint(0, diffuser.timesteps, (batch_size,), device=device).long()
 
-            loss = diffusion.p_losses(model, batch, t, loss_type="huber")
+            loss = diffuser.p_losses(model, batch, t, loss_type="huber")
 
             if step % 100 == 0:
                 print("Loss:", loss.item(), "step:", step)
@@ -72,7 +74,8 @@ def main():
             if step != 0 and step % save_and_sample_every == 0:
                 milestone = step // save_and_sample_every
                 batches = num_to_groups(4, batch_size)
-                all_images_list = list(map(lambda n: diffusion.sample(model, image_size, batch_size=n, channels=channels), batches))
+                # target_shape = (batch_size, channels, image_size, image_size)
+                all_images_list = list(map(lambda n: diffuser.sample(model, image_size, batch_size=n, channels=channels), batches))
                 all_images = torch.cat(all_images_list[0], dim=0)
                 all_images = (all_images + 1) * 0.5
                 save_image(all_images, str(results_folder / f'sample-{milestone}.png'), nrow=6)
